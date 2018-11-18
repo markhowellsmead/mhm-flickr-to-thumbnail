@@ -4,7 +4,7 @@ Plugin Name: Import thumbnail image from Flickr
 Plugin URI: #
 Description:
 Author: Mark Howells-Mead
-Version: 1.0
+Version: 1.2.0
 Author URI: http://permanenttourist.ch/
 */
 
@@ -16,7 +16,7 @@ class MHMFlickrToThumbnail
 	
 	public $key = '';
 	
-	public $version = '1.0';
+	public $version = '1.2.0';
 	
 	public function __construct()
 	{
