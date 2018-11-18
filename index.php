@@ -4,7 +4,7 @@ Plugin Name: Import thumbnail image from Flickr
 Plugin URI: #
 Description:
 Author: Mark Howells-Mead
-Version: 1.0
+Version: 1.2.0
 Author URI: http://permanenttourist.ch/
 */
 
@@ -16,7 +16,7 @@ class MHMFlickrToThumbnail
 	
 	public $key = '';
 	
-	public $version = '1.0';
+	public $version = '1.2.0';
 	
 	public function __construct()
 	{
@@ -31,11 +31,43 @@ class MHMFlickrToThumbnail
 		if (!empty($this->config['flickr_key']) && !empty($this->config['flickr_secret']) && !empty($this->config['flickr_userid'])) {
 			add_action('post_submitbox_misc_actions', array($this, 'add_checkboxes' ));
 			add_action('save_post', array($this, 'import_from_flickr'), 10, 3);
+			//add_action('admin_menu', [$this, 'registerSubmenuPage']);
+			add_filter('parse_query', [$this, 'filteredPostList'], 10, 1);
 		}
 	}
 
-	//////////////////////////////////////////////////
-	
+	public function filteredPostList($query)
+	{
+		if (is_admin() and $query->query['post_type'] == 'post') {
+			if (isset($_GET['flickrtags']) && (int)$_GET['flickrtags'] === 1) {
+				$query_vars = &$query->query_vars;
+				$query_vars['s'] = '[flickr tags=';
+			} elseif (isset($_GET['flickr']) && (int)$_GET['flickr'] === 1) {
+				$query_vars = &$query->query_vars;
+				$query_vars['s'] = '[flickr id=';
+			}
+		}
+	}
+
+	// public function registerSubmenuPage()
+	// {
+	// 	add_submenu_page(
+	// 		'edit.php',
+	// 		'Flickr posts',
+	// 		'Flickr posts',
+	// 		'manage_options',
+	// 		'flickr-posts',
+	// 		[$this, 'flickrSubmenuPage']
+	// 	);
+	// }
+
+	// public function flickrSubmenuPage()
+	// {
+	// 	echo '<div class="wrap">';
+	// 	echo '<h2>' .get_admin_page_title(). '</h2>';
+	// 	echo '</div>';
+	// }
+
 	public function dump($var, $die = false)
 	{
 		echo '<pre>' .print_r($var, 1). '</pre>';
@@ -44,8 +76,6 @@ class MHMFlickrToThumbnail
 		}
 	}
 
-	//////////////////////////////////////////////////
-	
 	/**
 	* Add checkboxes to the Post submit box in wp-admin
 	*/
@@ -56,8 +86,6 @@ class MHMFlickrToThumbnail
         </div>';
 	}
 
-	//////////////////////////////////////////////////
-	
 	private function getRemoteFileContents($url)
 	{
 		$ch = curl_init();
@@ -68,9 +96,6 @@ class MHMFlickrToThumbnail
 		curl_close($ch);
 		return $contents;
 	}
-
-
-	//////////////////////////////////////////////////
 
 	/**
 	 * Save thumbnail IPTC keywords to the post as post_tag taxonomy entries
@@ -85,22 +110,31 @@ class MHMFlickrToThumbnail
 			
 			$flickr_id = get_post_meta($post_id, 'flickr_id', true);
 
-			if (!filter_var($flickr_code, FILTER_VALIDATE_URL)) {
-				$this->flickr_id = $flickr_id;
-				$this->getImageFromFlickr();
+			if (empty($flickr_id)) {
+				$flickr_id = get_post_meta($post_id, 'video_ref', true);
 			}
+
+			if (empty($flickr_id)) {
+				return;
+			}
+
+			if (filter_var($flickr_id, FILTER_VALIDATE_URL)) {
+				$parts = explode('/', $flickr_id);
+				$flickr_id = (int)$parts[5];
+			}
+
+			$this->flickr_id = $flickr_id;
+			$this->getImageFromFlickr();
 		}
 	}
 
-	//////////////////////////////////////////////////
-	
 	private function getImageFromFlickr()
 	{
 		$FlickrRequestString = 'https://api.flickr.com/services/rest/?method=flickr.photos.getSizes&extras=original_format&format=json&nojsoncallback=1&api_key='.$this->config['flickr_key'].'&secret='.$this->config['flickr_secret'].'&photo_id='.$this->flickr_id;
 		
 		if (($image_data = $this->getRemoteFileContents($FlickrRequestString))) {
 			$images = json_decode($image_data, true);
-			
+
 			if ($images) {
 				$biggest = $images['sizes']['size'][ count($images['sizes']['size']) - 1 ];
 				$source = $biggest['source'];
@@ -125,8 +159,6 @@ class MHMFlickrToThumbnail
 			}
 		}
 	}
-
-	//////////////////////////////////////////////////
 
 	public function set_post_thumbnail($post_id, $localfilepath)
 	{

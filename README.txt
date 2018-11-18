@@ -21,5 +21,10 @@ If the appropriate checkboxes are selected in the Post submit box, the plugin re
 
 == Changelog ==
 
-= 1.1 =
+= 1.2.0 =
+
+* Support URLs as Flickr IDs
+
+= 1.1.0 =
+
 * Initial public version.
