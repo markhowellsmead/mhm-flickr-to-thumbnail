@@ -110,10 +110,21 @@ class MHMFlickrToThumbnail
 			
 			$flickr_id = get_post_meta($post_id, 'flickr_id', true);
 
-			if (!filter_var($flickr_code, FILTER_VALIDATE_URL)) {
-				$this->flickr_id = $flickr_id;
-				$this->getImageFromFlickr();
+			if (empty($flickr_id)) {
+				$flickr_id = get_post_meta($post_id, 'video_ref', true);
 			}
+
+			if (empty($flickr_id)) {
+				return;
+			}
+
+			if (filter_var($flickr_id, FILTER_VALIDATE_URL)) {
+				$parts = explode('/', $flickr_id);
+				$flickr_id = (int)$parts[5];
+			}
+
+			$this->flickr_id = $flickr_id;
+			$this->getImageFromFlickr();
 		}
 	}
 
@@ -123,7 +134,7 @@ class MHMFlickrToThumbnail
 		
 		if (($image_data = $this->getRemoteFileContents($FlickrRequestString))) {
 			$images = json_decode($image_data, true);
-			
+
 			if ($images) {
 				$biggest = $images['sizes']['size'][ count($images['sizes']['size']) - 1 ];
 				$source = $biggest['source'];
