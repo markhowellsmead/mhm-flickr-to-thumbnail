@@ -4,7 +4,7 @@ Plugin Name: Import thumbnail image from Flickr
 Plugin URI: #
 Description:
 Author: Mark Howells-Mead
-Version: 1.2.0
+Version: 1.3.0
 Author URI: http://permanenttourist.ch/
 */
 
@@ -33,6 +33,52 @@ class MHMFlickrToThumbnail
 			add_action('save_post', array($this, 'import_from_flickr'), 10, 3);
 			//add_action('admin_menu', [$this, 'registerSubmenuPage']);
 			add_filter('parse_query', [$this, 'filteredPostList'], 10, 1);
+			add_action('init', function () {
+				$this->importViaGet();
+			});
+		}
+	}
+
+	public function importViaGet()
+	{
+
+		if (isset($_GET['getFlickr']) && (int)$_GET['getFlickr']) {
+			ini_set('display_errors', 1);
+			error_reporting(E_ALL);
+
+			global $wpdb;
+			$results = $wpdb->get_results("select post_id from wp_postmeta where meta_value like '%flickr.com%' and meta_key = 'video_ref' LIMIT 0, 10;", ARRAY_A);
+
+			if (!$results) {
+				return;
+			}
+
+			foreach ($results as $key => $value) {
+				$this->post_id = (int)$value['post_id'];
+				
+				$flickr_id = get_post_meta($this->post_id, 'flickr_id', true);
+
+
+				if (empty($flickr_id)) {
+					$flickr_id = get_post_meta($this->post_id, 'video_ref', true);
+				}
+
+				if (empty($flickr_id)) {
+					return;
+				}
+
+				if (filter_var($flickr_id, FILTER_VALIDATE_URL)) {
+					$parts = explode('/', $flickr_id);
+					$flickr_id = (int)$parts[5];
+				}
+
+				$this->flickr_id = $flickr_id;
+
+				$this->getImageFromFlickr();
+
+				$this->dump($this->post_id.' done');
+			}
+			wp_die();
 		}
 	}
 
@@ -131,14 +177,14 @@ class MHMFlickrToThumbnail
 	private function getImageFromFlickr()
 	{
 		$FlickrRequestString = 'https://api.flickr.com/services/rest/?method=flickr.photos.getSizes&extras=original_format&format=json&nojsoncallback=1&api_key='.$this->config['flickr_key'].'&secret='.$this->config['flickr_secret'].'&photo_id='.$this->flickr_id;
-		
+
 		if (($image_data = $this->getRemoteFileContents($FlickrRequestString))) {
 			$images = json_decode($image_data, true);
 
 			if ($images) {
 				$biggest = $images['sizes']['size'][ count($images['sizes']['size']) - 1 ];
 				$source = $biggest['source'];
-				
+
 				$upload_dirs = wp_upload_dir();
 				$destination = $upload_dirs['path'];
 				
@@ -152,8 +198,9 @@ class MHMFlickrToThumbnail
 					$targetpath = explode('?', trailingslashit($destination).$filename)[0];
 
 					if (@copy($source, $targetpath) && file_exists($targetpath)) {
-						$this->set_post_thumbnail($post_id, $targetpath);
-						delete_post_meta($post_id, 'flickr_id');
+						$this->set_post_thumbnail($this->post_id, $targetpath);
+						delete_post_meta($this->post_id, 'flickr_id');
+						delete_post_meta($this->post_id, 'video_ref');
 					}
 				}
 			}
