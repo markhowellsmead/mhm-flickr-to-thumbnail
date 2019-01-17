@@ -47,7 +47,7 @@ class MHMFlickrToThumbnail
 			error_reporting(E_ALL);
 
 			global $wpdb;
-			$results = $wpdb->get_results("select post_id from wp_postmeta where meta_value like '%flickr.com%' and meta_key = 'video_ref' LIMIT 0, 10;", ARRAY_A);
+			$results = $wpdb->get_results("select post_id from wp_postmeta where meta_value like '%flickr.com%' and meta_key = 'video_ref' LIMIT 0, 200;", ARRAY_A);
 
 			if (!$results) {
 				return;
