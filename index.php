@@ -53,6 +53,8 @@ class MHMFlickrToThumbnail
 				return;
 			}
 
+			set_time_limit(600);
+
 			foreach ($results as $key => $value) {
 				$this->post_id = (int)$value['post_id'];
 				
